@@ -1,0 +1,6 @@
+﻿.cursorrules
+__pycache__
+.vscode
+.cursor
+build
+accounts.py
