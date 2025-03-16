@@ -62,10 +62,30 @@
 
 这个错误表示GitHub Actions无法找到指定版本的upload-artifact动作。解决方法：
 
-- 已将工作流文件中的`actions/upload-artifact@v3`更改为`actions/upload-artifact@v2`
-- 如果仍然出现问题，可以尝试使用最新版本：`actions/upload-artifact@v4`
+- 已将工作流文件中的`actions/upload-artifact@v3`更改为`actions/upload-artifact@v4`
+- 如果仍然出现问题，可以尝试使用其他版本：`actions/upload-artifact@v2`
 
-### 2. 构建失败
+### 2. "GitHub release failed with status: 403"错误
+
+这个错误表示GitHub Actions没有足够的权限来创建Release。解决方法：
+
+- 确保仓库设置中的Actions权限配置正确：
+  1. 进入仓库的"Settings" > "Actions" > "General"
+  2. 在"Workflow permissions"部分，选择"Read and write permissions"
+  3. 勾选"Allow GitHub Actions to create and approve pull requests"
+  4. 点击"Save"按钮保存设置
+
+- 在工作流文件中明确设置权限：
+  ```yaml
+  jobs:
+    build:
+      permissions:
+        contents: write
+  ```
+
+- 如果使用的是私有仓库，确保您有足够的权限来创建Release
+
+### 3. 构建失败
 
 如果构建过程失败，请检查：
 
@@ -73,7 +93,7 @@
 - 项目依赖是否齐全
 - 查看GitHub Actions日志中的具体错误信息
 
-### 3. 无法创建Release
+### 4. 无法创建Release
 
 如果自动创建Release失败，可能是因为：
 
