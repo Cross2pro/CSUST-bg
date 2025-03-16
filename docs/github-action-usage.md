@@ -54,6 +54,33 @@
    - 可以通过GitHub Actions页面手动触发
    - 创建草稿版本的Release，需要手动发布
 
+## 常见问题排查
+
+如果在使用GitHub Actions过程中遇到问题，可以参考以下解决方案：
+
+### 1. "Missing download info for actions/upload-artifact@v3"错误
+
+这个错误表示GitHub Actions无法找到指定版本的upload-artifact动作。解决方法：
+
+- 已将工作流文件中的`actions/upload-artifact@v3`更改为`actions/upload-artifact@v2`
+- 如果仍然出现问题，可以尝试使用最新版本：`actions/upload-artifact@v4`
+
+### 2. 构建失败
+
+如果构建过程失败，请检查：
+
+- CMakeLists.txt文件是否正确配置
+- 项目依赖是否齐全
+- 查看GitHub Actions日志中的具体错误信息
+
+### 3. 无法创建Release
+
+如果自动创建Release失败，可能是因为：
+
+- GitHub Token权限不足，确保仓库设置中的Actions权限配置正确
+- 标签格式不正确，确保标签以`v`开头
+- 检查`softprops/action-gh-release`动作的配置是否正确
+
 ## 注意事项
 
 - 确保项目的CMakeLists.txt文件正确配置
