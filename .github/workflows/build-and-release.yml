@@ -1,0 +1,74 @@
+name: 构建并发布
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送带有v开头的标签时触发，例如v1.0.0
+
+jobs:
+  build:
+    name: 构建Windows应用
+    runs-on: windows-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+      
+    - name: 设置Visual Studio环境
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: 设置CMake
+      uses: lukka/get-cmake@latest
+      
+    - name: 创建构建目录
+      run: mkdir build
+      
+    - name: 配置CMake
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      
+    - name: 构建项目
+      run: cmake --build build --config Release
+      
+    - name: 创建发布目录
+      run: |
+        mkdir release
+        cp build/Release/WifiAutoConnectService.exe release/
+        cp README.md release/
+      shell: pwsh
+      
+    - name: 创建ZIP压缩包
+      run: |
+        Compress-Archive -Path release/* -DestinationPath WifiAutoConnectService.zip
+      shell: pwsh
+      
+    - name: 获取版本号
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      shell: bash
+      
+    - name: 创建GitHub发布
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: WiFi自动连接服务 ${{ steps.get_version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        files: |
+          WifiAutoConnectService.zip
+        body: |
+          # WiFi自动连接服务 ${{ steps.get_version.outputs.VERSION }}
+          
+          这是一个Windows服务应用程序，用于自动检测WiFi连接状态，并在断开连接时自动连接到指定的WiFi网络，还可以自动登录需要Web认证的网络。
+          
+          ## 安装方法
+          
+          1. 下载并解压 WifiAutoConnectService.zip
+          2. 以管理员身份运行命令提示符
+          3. 使用以下命令安装服务：
+             ```
+             WifiAutoConnectService.exe install <SSID> <密码> [登录用户名] [登录密码] [登录URL]
+             ```
+          
+          详细使用说明请参阅README.md文件。
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

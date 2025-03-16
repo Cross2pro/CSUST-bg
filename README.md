@@ -87,6 +87,19 @@ WifiAutoConnectService.exe run <SSID> <密码> [登录用户名] [登录密码] 
 3. 连接成功后，如果配置了Web认证信息，会尝试自动登录
 4. 服务会每30秒检查一次连接状态
 
+## 自动构建与发布
+
+本项目使用GitHub Actions自动构建和发布。每当推送带有`v`前缀的标签（如`v1.0.0`）时，会自动触发构建流程并创建一个新的Release。
+
+如需发布新版本，只需创建并推送一个新标签：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+详细说明请参阅[GitHub Action使用指南](docs/github-action-usage.md)。
+
 ## 注意事项
 
 - 服务需要以管理员权限运行
