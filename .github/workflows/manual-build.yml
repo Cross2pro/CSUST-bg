@@ -45,7 +45,7 @@ jobs:
       shell: pwsh
       
     - name: 上传构建产物
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: WifiAutoConnectService-${{ github.event.inputs.version }}
         path: WifiAutoConnectService-${{ github.event.inputs.version }}.zip
