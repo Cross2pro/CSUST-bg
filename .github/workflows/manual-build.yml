@@ -66,7 +66,7 @@ jobs:
         body: |
           # WiFi自动连接服务 ${{ github.event.inputs.version }}
           
-          这是一个Windows服务应用程序，用于自动检测WiFi连接状态，并在断开连接时自动连接到指定的WiFi网络，还可以自动登录需要Web认证的网络。
+          这是一个Windows服务应用程序，用于自动检测WiFi连接状态，并在断开连接时自动连接到指定的WiFi网络（长理校园网），还可以自动登录校园网。
           
           ## 安装方法
           
@@ -74,7 +74,7 @@ jobs:
           2. 以管理员身份运行命令提示符
           3. 使用以下命令安装服务：
              ```
-             WifiAutoConnectService.exe install <SSID> <密码> [登录用户名] [登录密码] [登录URL]
+              WifiAutoConnectService.exe install <SSID> --password <mypass> --ca <campusAccount> --cp <campusPassword>
              ```
           
           详细使用说明请参阅README.md文件。
