@@ -45,7 +45,7 @@ jobs:
       run: |
         Compress-Archive -Path release/* -DestinationPath WifiAutoConnectService-${{ github.event.inputs.version }}.zip
         # 确保文件存在并输出文件信息
-        ls -la WifiAutoConnectService-${{ github.event.inputs.version }}.zip
+        Get-ChildItem -Path WifiAutoConnectService-${{ github.event.inputs.version }}.zip -Force | Format-Table Name, Length, LastWriteTime
       shell: pwsh
       
     - name: 上传构建产物
