@@ -144,12 +144,14 @@ void ParseCommandLineArgs(
 void PrintHelp() {
     std::wcout << L"WiFi Auto Connect Service\n";
     std::wcout << L"Usage:\n";
-    std::wcout << L"  install <SSID> [选项] - 安装服务\n";
-    std::wcout << L"  uninstall - 卸载服务\n";
-    std::wcout << L"  start - 启动服务\n";
-    std::wcout << L"  stop - 停止服务\n";
-    std::wcout << L"  status - 查看服务状态\n";
-    std::wcout << L"  run <SSID> [选项] - 直接运行（非服务模式）\n";
+    std::wcout << L"  install <SSID> [--password=<密码>] [--account=<校园网账号>] [--password=<校园网密码>]\n";
+    std::wcout << L"  uninstall\n";
+    std::wcout << L"  start\n";
+    std::wcout << L"  stop\n";
+    std::wcout << L"  status\n";
+    std::wcout << L"  run <SSID> [--password=<密码>] [--account=<校园网账号>] [--password=<校园网密码>]\n";
+    std::wcout << L"  autostart [on|off]  - 设置或查询开机自启动状态\n";
+    std::wcout << L"  service             - 作为服务运行（内部使用）\n";
     std::wcout << L"\n";
     std::wcout << L"选项:\n";
     std::wcout << L"  --password <密码>   - 设置WiFi密码\n";
@@ -337,6 +339,44 @@ int wmain(int argc, wchar_t* argv[]) {
                     break;
             }
             return 0;
+        }
+        // 设置或查询开机自启动状态
+        else if (command == L"autostart") {
+            // 检查服务是否已安装
+            if (!ServiceInstaller::IsServiceInstalled(SERVICE_NAME)) {
+                std::wcout << L"错误: 服务未安装\n";
+                return 1;
+            }
+            
+            // 如果有参数，设置开机自启动状态
+            if (argc >= 3) {
+                std::wstring option = argv[2];
+                if (option == L"on") {
+                    if (ServiceInstaller::SetServiceAutoStart(SERVICE_NAME, true)) {
+                        std::wcout << L"已设置服务为开机自启动\n";
+                        return 0;
+                    } else {
+                        std::wcout << L"设置开机自启动失败\n";
+                        return 1;
+                    }
+                } else if (option == L"off") {
+                    if (ServiceInstaller::SetServiceAutoStart(SERVICE_NAME, false)) {
+                        std::wcout << L"已取消服务开机自启动\n";
+                        return 0;
+                    } else {
+                        std::wcout << L"取消开机自启动失败\n";
+                        return 1;
+                    }
+                } else {
+                    std::wcout << L"错误: 无效的选项，请使用 'on' 或 'off'\n";
+                    return 1;
+                }
+            } else {
+                // 查询当前开机自启动状态
+                bool isAutoStart = ServiceInstaller::IsServiceAutoStart(SERVICE_NAME);
+                std::wcout << L"服务开机自启动状态: " << (isAutoStart ? L"已启用" : L"已禁用") << L"\n";
+                return 0;
+            }
         }
         // 直接运行（非服务模式）
         else if (command == L"run") {

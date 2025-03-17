@@ -31,6 +31,12 @@ public:
     
     // 获取服务状态
     static DWORD GetServiceStatus(const std::wstring& serviceName);
+    
+    // 检查服务是否设置为开机自启动
+    static bool IsServiceAutoStart(const std::wstring& serviceName);
+    
+    // 设置服务为开机自启动
+    static bool SetServiceAutoStart(const std::wstring& serviceName, bool autoStart);
 
 private:
     // 打开服务控制管理器

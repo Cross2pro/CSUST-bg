@@ -1,4 +1,4 @@
-#define UNICODE
+﻿#define UNICODE
 #define _UNICODE
 
 #include "../include/service_installer.h"
@@ -38,7 +38,7 @@ bool ServiceInstaller::Install(
         displayName.c_str(),            // 服务显示名称
         SERVICE_ALL_ACCESS,             // 访问权限
         SERVICE_WIN32_OWN_PROCESS,      // 服务类型
-        SERVICE_AUTO_START,             // 启动类型
+        SERVICE_AUTO_START,             // 启动类型 - 自动启动
         SERVICE_ERROR_NORMAL,           // 错误控制类型
         commandLine.c_str(),            // 服务二进制文件路径
         NULL,                           // 负载顺序组
@@ -66,6 +66,50 @@ bool ServiceInstaller::Install(
     )) {
         DWORD error = GetLastError();
         std::wcerr << L"ChangeServiceConfig2失败，错误码: " << error << std::endl;
+    }
+    
+    // 配置服务恢复选项，提高服务可靠性
+    SERVICE_FAILURE_ACTIONS sfa;
+    SC_ACTION actions[3];
+    
+    // 第一次失败时重启服务
+    actions[0].Type = SC_ACTION_RESTART;
+    actions[0].Delay = 60000; // 60秒后重启
+    
+    // 第二次失败时重启服务
+    actions[1].Type = SC_ACTION_RESTART;
+    actions[1].Delay = 120000; // 120秒后重启
+    
+    // 第三次失败时重启计算机
+    actions[2].Type = SC_ACTION_RESTART;
+    actions[2].Delay = 300000; // 300秒后重启
+    
+    sfa.dwResetPeriod = 86400; // 24小时后重置失败计数
+    sfa.lpRebootMsg = NULL;
+    sfa.lpCommand = NULL;
+    sfa.cActions = 3;
+    sfa.lpsaActions = actions;
+    
+    if (!ChangeServiceConfig2W(
+        schService,
+        SERVICE_CONFIG_FAILURE_ACTIONS,
+        &sfa
+    )) {
+        DWORD error = GetLastError();
+        std::wcerr << L"设置服务恢复选项失败，错误码: " << error << std::endl;
+    }
+    
+    // 设置服务在系统启动失败后自动重启
+    SERVICE_FAILURE_ACTIONS_FLAG sfaFlag;
+    sfaFlag.fFailureActionsOnNonCrashFailures = TRUE;
+    
+    if (!ChangeServiceConfig2W(
+        schService,
+        SERVICE_CONFIG_FAILURE_ACTIONS_FLAG,
+        &sfaFlag
+    )) {
+        DWORD error = GetLastError();
+        std::wcerr << L"设置服务失败行为标志失败，错误码: " << error << std::endl;
     }
     
     // 关闭服务句柄
@@ -495,4 +539,103 @@ bool ServiceInstaller::DeleteServiceConfigRegistry(const std::wstring& serviceNa
     }
     
     return true;
+}
+
+bool ServiceInstaller::IsServiceAutoStart(const std::wstring& serviceName) {
+    // 打开服务控制管理器
+    SC_HANDLE schSCManager = OpenSCManager();
+    if (schSCManager == NULL) {
+        return false;
+    }
+    
+    // 打开服务
+    SC_HANDLE schService = OpenService(schSCManager, serviceName);
+    if (schService == NULL) {
+        CloseServiceHandle(schSCManager);
+        return false;
+    }
+    
+    // 查询服务配置
+    DWORD bytesNeeded = 0;
+    QUERY_SERVICE_CONFIG* pServiceConfig = NULL;
+    
+    // 首先获取所需的缓冲区大小
+    if (!QueryServiceConfigW(schService, NULL, 0, &bytesNeeded) && 
+        GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+        
+        // 分配内存
+        pServiceConfig = (QUERY_SERVICE_CONFIG*)LocalAlloc(LMEM_FIXED, bytesNeeded);
+        if (pServiceConfig != NULL) {
+            // 获取服务配置
+            if (QueryServiceConfigW(schService, pServiceConfig, bytesNeeded, &bytesNeeded)) {
+                // 检查启动类型
+                bool isAutoStart = (pServiceConfig->dwStartType == SERVICE_AUTO_START);
+                
+                // 释放内存
+                LocalFree(pServiceConfig);
+                
+                // 关闭句柄
+                CloseServiceHandle(schService);
+                CloseServiceHandle(schSCManager);
+                
+                return isAutoStart;
+            }
+            
+            // 释放内存
+            LocalFree(pServiceConfig);
+        }
+    }
+    
+    // 关闭句柄
+    CloseServiceHandle(schService);
+    CloseServiceHandle(schSCManager);
+    
+    return false;
+}
+
+bool ServiceInstaller::SetServiceAutoStart(const std::wstring& serviceName, bool autoStart) {
+    // 打开服务控制管理器
+    SC_HANDLE schSCManager = OpenSCManager();
+    if (schSCManager == NULL) {
+        return false;
+    }
+    
+    // 打开服务
+    SC_HANDLE schService = OpenService(schSCManager, serviceName);
+    if (schService == NULL) {
+        CloseServiceHandle(schSCManager);
+        return false;
+    }
+    
+    // 设置服务启动类型
+    DWORD startType = autoStart ? SERVICE_AUTO_START : SERVICE_DEMAND_START;
+    
+    bool result = ChangeServiceConfigW(
+        schService,                // 服务句柄
+        SERVICE_NO_CHANGE,         // 服务类型：不变
+        startType,                 // 启动类型
+        SERVICE_NO_CHANGE,         // 错误控制：不变
+        NULL,                      // 二进制路径：不变
+        NULL,                      // 负载顺序组：不变
+        NULL,                      // 标记组内顺序：不变
+        NULL,                      // 依赖服务：不变
+        NULL,                      // 服务账户：不变
+        NULL,                      // 服务账户密码：不变
+        NULL                       // 服务显示名称：不变
+    );
+    
+    // 获取错误码
+    DWORD error = GetLastError();
+    
+    // 关闭句柄
+    CloseServiceHandle(schService);
+    CloseServiceHandle(schSCManager);
+    
+    if (!result) {
+        std::wcerr << L"设置服务启动类型失败，错误码: " << error << std::endl;
+    } else {
+        std::wcout << L"服务启动类型设置成功: " << (autoStart ? L"自动启动" : L"手动启动") << std::endl;
+    }
+    
+    return result;
 } 
