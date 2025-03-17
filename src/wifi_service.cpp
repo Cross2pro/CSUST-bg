@@ -276,20 +276,29 @@ DWORD WINAPI WifiService::ServiceWorkerThread(LPVOID lpParam) {
     // 记录连续失败次数
     DWORD consecutiveFailures = 0;
     
+    // 记录上次WiFi状态检查时间
+    ULONGLONG lastWifiCheckTime = 0;
+    
+    // 记录上次网络连接检查时间
+    ULONGLONG lastNetworkCheckTime = 0;
+    
     // 工作循环
     while (WaitForSingleObject(service->m_serviceStopEvent, 0) != WAIT_OBJECT_0) {
         try {
             // 获取当前时间
             ULONGLONG currentTime = GetTickCount64();
             
-            // 检查WiFi连接状态
-            bool isConnected = service->m_wifiManager.IsConnected();
-            std::wstring currentSsid = isConnected ? service->m_wifiManager.GetCurrentSSID() : L"";
-            
-            // 连接状态发生变化或SSID变化时才执行操作
-            if (isConnected != lastConnected || (isConnected && currentSsid != lastSsid)) {
+            // 定期检查WiFi连接状态（每10秒）
+            if (currentTime - lastWifiCheckTime > 10000) {
+                lastWifiCheckTime = currentTime;
+                
+                // 检查WiFi连接状态
+                bool isConnected = service->m_wifiManager.IsConnected();
+                std::wstring currentSsid = isConnected ? service->m_wifiManager.GetCurrentSSID() : L"";
+                
+                // 如果WiFi断开，尝试重新连接
                 if (!isConnected) {
-                    std::wcout << L"WiFi未连接，尝试连接到: " << service->m_targetSsid << std::endl;
+                    std::wcout << L"检测到WiFi未连接，尝试连接到: " << service->m_targetSsid << std::endl;
                     
                     // 尝试连接到目标WiFi
                     if (service->m_wifiManager.ConnectToNetwork(service->m_targetSsid, service->m_targetPassword)) {
@@ -297,6 +306,9 @@ DWORD WINAPI WifiService::ServiceWorkerThread(LPVOID lpParam) {
                         
                         // 重置失败计数
                         consecutiveFailures = 0;
+                        
+                        // 连接成功后等待一段时间再执行校园网登录
+                        Sleep(3000);
                         
                         // 执行校园网登录
                         if (!service->m_campusNetworkAccount.empty() && !service->m_campusNetworkPassword.empty()) {
@@ -311,17 +323,19 @@ DWORD WINAPI WifiService::ServiceWorkerThread(LPVOID lpParam) {
                         // 根据连续失败次数调整等待时间
                         Sleep(min(consecutiveFailures * 5000, (DWORD)60000)); // 最多等待60秒
                     }
-                } else if (currentSsid == service->m_targetSsid) {
-                    // 已连接到目标WiFi，检查网络连接状态
+                } 
+                // 如果已连接到目标WiFi，但连接状态或SSID发生变化
+                else if (currentSsid == service->m_targetSsid && 
+                        (isConnected != lastConnected || currentSsid != lastSsid)) {
+                    std::wcout << L"已连接到目标WiFi: " << currentSsid << std::endl;
+                    
+                    // 检查网络连接状态
                     if (!service->m_networkRequester.CheckNetworkConnection()) {
-                        // 如果距离上次登录尝试超过2分钟，再次尝试登录
-                        if (currentTime - lastLoginAttempt > 120000) {
-                            std::wcout << L"网络连接异常，尝试校园网登录..." << std::endl;
-                            lastLoginAttempt = currentTime;
-                            service->PerformCampusNetworkLogin();
-                        }
+                        std::wcout << L"网络连接异常，尝试校园网登录..." << std::endl;
+                        lastLoginAttempt = currentTime;
+                        service->PerformCampusNetworkLogin();
                     } else {
-                        // 网络连接正常，重置失败计数
+                        std::wcout << L"网络连接正常" << std::endl;
                         consecutiveFailures = 0;
                     }
                 }
@@ -329,27 +343,27 @@ DWORD WINAPI WifiService::ServiceWorkerThread(LPVOID lpParam) {
                 // 更新上次状态
                 lastConnected = isConnected;
                 lastSsid = currentSsid;
-            } else if (isConnected && currentSsid == service->m_targetSsid) {
-                // 已连接到目标WiFi，定期检查网络连接状态（每5分钟）
-                static ULONGLONG lastNetworkCheck = 0;
-                if (currentTime - lastNetworkCheck > 300000) { // 5分钟
-                    lastNetworkCheck = currentTime;
-                    
-                    if (!service->m_networkRequester.CheckNetworkConnection()) {
-                        // 如果距离上次登录尝试超过2分钟，再次尝试登录
-                        if (currentTime - lastLoginAttempt > 120000) {
-                            std::wcout << L"定期检查：网络连接异常，尝试校园网登录..." << std::endl;
-                            lastLoginAttempt = currentTime;
-                            service->PerformCampusNetworkLogin();
-                        }
+            }
+            
+            // 如果已连接到目标WiFi，定期检查网络连接状态（每30秒）
+            if (lastConnected && lastSsid == service->m_targetSsid && 
+                currentTime - lastNetworkCheckTime > 30000) {
+                lastNetworkCheckTime = currentTime;
+                
+                // 检查网络连接状态
+                if (!service->m_networkRequester.CheckNetworkConnection()) {
+                    // 如果距离上次登录尝试超过1分钟，再次尝试登录
+                    if (currentTime - lastLoginAttempt > 60000) {
+                        std::wcout << L"定期检查：网络连接异常，尝试校园网登录..." << std::endl;
+                        lastLoginAttempt = currentTime;
+                        service->PerformCampusNetworkLogin();
                     }
                 }
             }
             
-            // 根据连接状态调整检查频率
-            DWORD sleepTime = isConnected ? 30000 : 15000; // 已连接时30秒，未连接时15秒
-            
             // 使用可中断的等待，以便能够及时响应停止事件
+            // 根据连接状态调整检查频率
+            DWORD sleepTime = lastConnected ? 5000 : 3000; // 已连接时5秒，未连接时3秒
             WaitForSingleObject(service->m_serviceStopEvent, sleepTime);
         } catch (const std::exception& e) {
             // 捕获并记录异常，防止工作线程崩溃

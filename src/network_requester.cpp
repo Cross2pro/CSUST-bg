@@ -124,17 +124,40 @@ bool NetworkRequester::LoginCampusNetwork(const std::wstring& account, const std
 bool NetworkRequester::CheckNetworkConnection() {
     std::wcout << L"检查网络中，请稍后..." << std::endl;
     
+    // 定义多个测试网站，提高检测可靠性
+    const std::wstring testUrls[] = {
+        L"https://www.baidu.com",
+        L"https://www.qq.com",
+        L"https://www.bing.com"
+    };
+    
+    for (const auto& url : testUrls) {
+        try {
+            std::wcout << L"尝试访问: " << url << std::endl;
+            std::wstring response = SendHttpGetRequest(url);
+            if (!response.empty()) {
+                std::wcout << L"网络连接正常，可以访问: " << url << std::endl;
+                return true;
+            }
+        } catch (...) {
+            // 忽略单个网站的访问异常，继续尝试其他网站
+            std::wcout << L"无法访问: " << url << std::endl;
+        }
+    }
+    
+    // 尝试访问校园网登录页面
     try {
-        std::wstring response = SendHttpGetRequest(L"https://www.baidu.com");
+        std::wstring loginPageUrl = L"https://login.csust.edu.cn/drcom/chkstatus?callback=dr1002&jsVersion=4.X&v=1611&lang=zh";
+        std::wstring response = SendHttpGetRequest(loginPageUrl);
         if (!response.empty()) {
-            std::wcout << L"网络连接正常" << std::endl;
-            return true;
+            std::wcout << L"可以访问校园网登录页面，但可能需要登录" << std::endl;
+            return false; // 可以访问登录页面但不能访问外网，需要登录
         }
     } catch (...) {
         // 忽略异常
     }
     
-    std::wcerr << L"断网或者连接失败" << std::endl;
+    std::wcerr << L"断网或者连接失败，无法访问任何测试网站" << std::endl;
     return false;
 }
 

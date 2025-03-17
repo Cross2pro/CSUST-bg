@@ -200,6 +200,17 @@ bool WifiManager::ConnectToNetwork(const std::wstring& ssid, const std::wstring&
         return true;
     }
     
+    // 先执行WiFi扫描，确保能发现目标网络
+    std::wcout << L"扫描可用WiFi网络..." << std::endl;
+    DWORD scanResult = WlanScan(m_hClient, &m_interfaceGuid, NULL, NULL, NULL);
+    if (scanResult != ERROR_SUCCESS) {
+        std::wcerr << L"WiFi扫描失败，错误码: " << scanResult << std::endl;
+        // 即使扫描失败，也尝试继续连接
+    } else {
+        // 等待扫描完成
+        Sleep(3000);
+    }
+    
     // 获取指定SSID的网络信息
     PWLAN_AVAILABLE_NETWORK_LIST pNetworkList = NULL;
     DWORD dwResult = WlanGetAvailableNetworkList(
@@ -224,38 +235,59 @@ bool WifiManager::ConnectToNetwork(const std::wstring& ssid, const std::wstring&
         
         if (currentSsid == ssid) {
             pTargetNetwork = &network;
+            std::wcout << L"找到目标网络: " << ssid << L"，信号强度: " << network.wlanSignalQuality << L"%" << std::endl;
             break;
         }
     }
     
     if (pTargetNetwork == NULL) {
-        std::wcerr << L"无法找到SSID为" << ssid << L"的网络" << std::endl;
+        std::wcerr << L"无法找到SSID为" << ssid << L"的网络，尝试使用通用配置文件" << std::endl;
         WlanFreeMemory(pNetworkList);
-        return false;
-    }
-    
-    // 创建WiFi配置文件
-    std::wstring profileXml = CreateProfileXml(ssid, password, *pTargetNetwork);
-    
-    // 释放网络列表内存
-    WlanFreeMemory(pNetworkList);
-    
-    // 设置WiFi配置文件
-    DWORD dwReasonCode = 0;
-    dwResult = WlanSetProfile(
-        m_hClient,
-        &m_interfaceGuid,
-        0,
-        profileXml.c_str(),
-        NULL,
-        TRUE,
-        NULL,
-        &dwReasonCode
-    );
-    
-    if (dwResult != ERROR_SUCCESS) {
-        std::wcerr << L"WlanSetProfile失败，错误码: " << dwResult << L"，原因码: " << dwReasonCode << std::endl;
-        return false;
+        
+        // 即使找不到网络，也尝试使用通用配置文件连接
+        std::wstring profileXml = CreateProfileXml(ssid, password);
+        
+        // 设置WiFi配置文件
+        DWORD dwReasonCode = 0;
+        dwResult = WlanSetProfile(
+            m_hClient,
+            &m_interfaceGuid,
+            0,
+            profileXml.c_str(),
+            NULL,
+            TRUE,
+            NULL,
+            &dwReasonCode
+        );
+        
+        if (dwResult != ERROR_SUCCESS) {
+            std::wcerr << L"WlanSetProfile失败，错误码: " << dwResult << L"，原因码: " << dwReasonCode << std::endl;
+            return false;
+        }
+    } else {
+        // 创建WiFi配置文件
+        std::wstring profileXml = CreateProfileXml(ssid, password, *pTargetNetwork);
+        
+        // 释放网络列表内存
+        WlanFreeMemory(pNetworkList);
+        
+        // 设置WiFi配置文件
+        DWORD dwReasonCode = 0;
+        dwResult = WlanSetProfile(
+            m_hClient,
+            &m_interfaceGuid,
+            0,
+            profileXml.c_str(),
+            NULL,
+            TRUE,
+            NULL,
+            &dwReasonCode
+        );
+        
+        if (dwResult != ERROR_SUCCESS) {
+            std::wcerr << L"WlanSetProfile失败，错误码: " << dwResult << L"，原因码: " << dwReasonCode << std::endl;
+            return false;
+        }
     }
     
     // 连接到网络
@@ -268,6 +300,7 @@ bool WifiManager::ConnectToNetwork(const std::wstring& ssid, const std::wstring&
     params.pDesiredBssidList = NULL;
     params.dot11BssType = dot11_BSS_type_infrastructure;
     
+    std::wcout << L"尝试连接到WiFi: " << ssid << std::endl;
     dwResult = WlanConnect(
         m_hClient,
         &m_interfaceGuid,
@@ -280,16 +313,22 @@ bool WifiManager::ConnectToNetwork(const std::wstring& ssid, const std::wstring&
         return false;
     }
     
-    // 等待连接完成
-    for (int i = 0; i < 30; i++) {
+    // 等待连接完成，最多等待45秒
+    std::wcout << L"等待WiFi连接完成..." << std::endl;
+    for (int i = 0; i < 45; i++) {
         Sleep(1000);
         if (IsConnected() && GetCurrentSSID() == ssid) {
-            std::wcout << L"成功连接到网络: " << ssid << std::endl;
+            std::wcout << L"成功连接到WiFi: " << ssid << std::endl;
             return true;
+        }
+        
+        // 每5秒显示一次等待状态
+        if (i % 5 == 0 && i > 0) {
+            std::wcout << L"仍在等待WiFi连接，已等待" << i << L"秒..." << std::endl;
         }
     }
     
-    std::wcerr << L"连接超时" << std::endl;
+    std::wcerr << L"WiFi连接超时" << std::endl;
     return false;
 }
 
