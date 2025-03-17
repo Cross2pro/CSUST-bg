@@ -13,9 +13,6 @@ bool ServiceInstaller::Install(
     const std::wstring& executablePath,
     const std::wstring& targetSsid,
     const std::wstring& targetPassword,
-    const std::wstring& loginUsername,
-    const std::wstring& loginPassword,
-    const std::wstring& loginUrl,
     const std::wstring& campusAccount,
     const std::wstring& campusPassword
 ) {
@@ -80,9 +77,6 @@ bool ServiceInstaller::Install(
         serviceName,
         targetSsid,
         targetPassword,
-        loginUsername,
-        loginPassword,
-        loginUrl,
         campusAccount,
         campusPassword
     )) {
@@ -386,9 +380,6 @@ bool ServiceInstaller::CreateServiceConfigRegistry(
     const std::wstring& serviceName,
     const std::wstring& targetSsid,
     const std::wstring& targetPassword,
-    const std::wstring& loginUsername,
-    const std::wstring& loginPassword,
-    const std::wstring& loginUrl,
     const std::wstring& campusAccount,
     const std::wstring& campusPassword
 ) {
@@ -431,71 +422,19 @@ bool ServiceInstaller::CreateServiceConfigRegistry(
         return false;
     }
     
-    // 设置目标密码
-    result = RegSetValueExW(
-        hKey,
-        L"TargetPassword",
-        0,
-        REG_SZ,
-        (BYTE*)targetPassword.c_str(),
-        (DWORD)((targetPassword.length() + 1) * sizeof(wchar_t))
-    );
-    
-    if (result != ERROR_SUCCESS) {
-        std::wcerr << L"RegSetValueEx (TargetPassword) 失败，错误码: " << result << std::endl;
-        RegCloseKey(hKey);
-        return false;
-    }
-    
-    // 设置登录用户名（如果有）
-    if (!loginUsername.empty()) {
+    // 设置目标密码（如果有）
+    if (!targetPassword.empty()) {
         result = RegSetValueExW(
             hKey,
-            L"LoginUsername",
+            L"TargetPassword",
             0,
             REG_SZ,
-            (BYTE*)loginUsername.c_str(),
-            (DWORD)((loginUsername.length() + 1) * sizeof(wchar_t))
+            (BYTE*)targetPassword.c_str(),
+            (DWORD)((targetPassword.length() + 1) * sizeof(wchar_t))
         );
         
         if (result != ERROR_SUCCESS) {
-            std::wcerr << L"RegSetValueEx (LoginUsername) 失败，错误码: " << result << std::endl;
-            RegCloseKey(hKey);
-            return false;
-        }
-    }
-    
-    // 设置登录密码（如果有）
-    if (!loginPassword.empty()) {
-        result = RegSetValueExW(
-            hKey,
-            L"LoginPassword",
-            0,
-            REG_SZ,
-            (BYTE*)loginPassword.c_str(),
-            (DWORD)((loginPassword.length() + 1) * sizeof(wchar_t))
-        );
-        
-        if (result != ERROR_SUCCESS) {
-            std::wcerr << L"RegSetValueEx (LoginPassword) 失败，错误码: " << result << std::endl;
-            RegCloseKey(hKey);
-            return false;
-        }
-    }
-    
-    // 设置登录URL（如果有）
-    if (!loginUrl.empty()) {
-        result = RegSetValueExW(
-            hKey,
-            L"LoginURL",
-            0,
-            REG_SZ,
-            (BYTE*)loginUrl.c_str(),
-            (DWORD)((loginUrl.length() + 1) * sizeof(wchar_t))
-        );
-        
-        if (result != ERROR_SUCCESS) {
-            std::wcerr << L"RegSetValueEx (LoginURL) 失败，错误码: " << result << std::endl;
+            std::wcerr << L"RegSetValueEx (TargetPassword) 失败，错误码: " << result << std::endl;
             RegCloseKey(hKey);
             return false;
         }

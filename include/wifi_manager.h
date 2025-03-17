@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <windows.h>
 #include <wlanapi.h>
@@ -28,9 +28,6 @@ public:
     
     // 连接到指定SSID的WiFi
     bool ConnectToNetwork(const std::wstring& ssid, const std::wstring& password = L"");
-    
-    // 自动登录网络（如果需要）
-    bool AutoLogin(const std::wstring& username, const std::wstring& password, const std::wstring& loginUrl = L"");
 
 private:
     // WLAN句柄
@@ -50,4 +47,7 @@ private:
     
     // 辅助函数：创建WiFi配置文件
     std::wstring CreateProfileXml(const std::wstring& ssid, const std::wstring& password);
+    
+    // 辅助函数：根据网络信息创建WiFi配置文件
+    std::wstring CreateProfileXml(const std::wstring& ssid, const std::wstring& password, const WLAN_AVAILABLE_NETWORK& network);
 }; 

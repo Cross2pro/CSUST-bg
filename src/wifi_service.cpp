@@ -95,12 +95,6 @@ void WifiService::SetTargetWifi(const std::wstring& ssid, const std::wstring& pa
     m_targetPassword = password;
 }
 
-void WifiService::SetLoginCredentials(const std::wstring& username, const std::wstring& password, const std::wstring& loginUrl) {
-    m_loginUsername = username;
-    m_loginPassword = password;
-    m_loginUrl = loginUrl;
-}
-
 void WifiService::SetCampusNetworkCredentials(const std::wstring& account, const std::wstring& password) {
     m_campusNetworkAccount = account;
     m_campusNetworkPassword = password;
@@ -270,16 +264,6 @@ DWORD WINAPI WifiService::ServiceWorkerThread(LPVOID lpParam) {
             // 尝试连接到目标WiFi
             if (service->m_wifiManager.ConnectToNetwork(service->m_targetSsid, service->m_targetPassword)) {
                 std::wcout << L"WiFi连接成功" << std::endl;
-                
-                // 如果需要，执行自动登录
-                if (!service->m_loginUsername.empty() && !service->m_loginPassword.empty()) {
-                    std::wcout << L"尝试自动登录..." << std::endl;
-                    service->m_wifiManager.AutoLogin(
-                        service->m_loginUsername,
-                        service->m_loginPassword,
-                        service->m_loginUrl
-                    );
-                }
                 
                 // 执行校园网登录
                 if (!service->m_campusNetworkAccount.empty() && !service->m_campusNetworkPassword.empty()) {

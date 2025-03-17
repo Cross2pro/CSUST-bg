@@ -85,7 +85,22 @@
 
 - 如果使用的是私有仓库，确保您有足够的权限来创建Release
 
-### 3. 构建失败
+### 3. 编译好的文件只在Artifacts中，不在Release中
+
+这个问题通常是由于文件路径不正确或文件不存在导致的。解决方法：
+
+- 确保ZIP文件路径正确，并且在创建Release之前已经生成
+- 在工作流文件中使用简单的文件路径格式，避免使用复杂的通配符
+- 添加调试步骤，确认文件是否存在：
+  ```yaml
+  - name: 检查文件
+    run: ls -la WifiAutoConnectService-${{ github.event.inputs.version }}.zip
+    shell: pwsh
+  ```
+- 确保Release步骤中的文件名与实际生成的文件名完全一致
+- 在Release步骤中使用绝对路径或相对于工作目录的路径
+
+### 4. 构建失败
 
 如果构建过程失败，请检查：
 
@@ -93,7 +108,7 @@
 - 项目依赖是否齐全
 - 查看GitHub Actions日志中的具体错误信息
 
-### 4. 无法创建Release
+### 5. 无法创建Release
 
 如果自动创建Release失败，可能是因为：
 

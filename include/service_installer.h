@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <windows.h>
 #include <string>
@@ -12,10 +12,7 @@ public:
         const std::wstring& description,
         const std::wstring& executablePath,
         const std::wstring& targetSsid,
-        const std::wstring& targetPassword,
-        const std::wstring& loginUsername = L"",
-        const std::wstring& loginPassword = L"",
-        const std::wstring& loginUrl = L"",
+        const std::wstring& targetPassword = L"",
         const std::wstring& campusAccount = L"",
         const std::wstring& campusPassword = L""
     );
@@ -47,9 +44,6 @@ private:
         const std::wstring& serviceName,
         const std::wstring& targetSsid,
         const std::wstring& targetPassword,
-        const std::wstring& loginUsername,
-        const std::wstring& loginPassword,
-        const std::wstring& loginUrl,
         const std::wstring& campusAccount,
         const std::wstring& campusPassword
     );

@@ -22,9 +22,6 @@ public:
     // 设置目标WiFi信息
     void SetTargetWifi(const std::wstring& ssid, const std::wstring& password);
     
-    // 设置自动登录信息
-    void SetLoginCredentials(const std::wstring& username, const std::wstring& password, const std::wstring& loginUrl);
-    
     // 设置校园网账号信息
     void SetCampusNetworkCredentials(const std::wstring& account, const std::wstring& password);
     
@@ -58,15 +55,6 @@ private:
     
     // 目标WiFi密码
     std::wstring m_targetPassword;
-    
-    // 登录用户名
-    std::wstring m_loginUsername;
-    
-    // 登录密码
-    std::wstring m_loginPassword;
-    
-    // 登录URL
-    std::wstring m_loginUrl;
     
     // 校园网账号
     std::wstring m_campusNetworkAccount;

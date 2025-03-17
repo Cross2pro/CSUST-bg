@@ -23,9 +23,6 @@ bool ReadServiceConfig(
     const std::wstring& serviceName,
     std::wstring& targetSsid,
     std::wstring& targetPassword,
-    std::wstring& loginUsername,
-    std::wstring& loginPassword,
-    std::wstring& loginUrl,
     std::wstring& campusAccount,
     std::wstring& campusPassword
 ) {
@@ -69,7 +66,7 @@ bool ReadServiceConfig(
         return false;
     }
     
-    // 读取目标密码
+    // 读取目标密码（如果有）
     bufferSize = sizeof(buffer);
     result = RegQueryValueExW(
         hKey,
@@ -82,55 +79,6 @@ bool ReadServiceConfig(
     
     if (result == ERROR_SUCCESS && type == REG_SZ) {
         targetPassword = buffer;
-    } else {
-        std::wcerr << L"读取TargetPassword失败，错误码: " << result << std::endl;
-        RegCloseKey(hKey);
-        return false;
-    }
-    
-    // 读取登录用户名（如果有）
-    bufferSize = sizeof(buffer);
-    result = RegQueryValueExW(
-        hKey,
-        L"LoginUsername",
-        NULL,
-        &type,
-        (BYTE*)buffer,
-        &bufferSize
-    );
-    
-    if (result == ERROR_SUCCESS && type == REG_SZ) {
-        loginUsername = buffer;
-    }
-    
-    // 读取登录密码（如果有）
-    bufferSize = sizeof(buffer);
-    result = RegQueryValueExW(
-        hKey,
-        L"LoginPassword",
-        NULL,
-        &type,
-        (BYTE*)buffer,
-        &bufferSize
-    );
-    
-    if (result == ERROR_SUCCESS && type == REG_SZ) {
-        loginPassword = buffer;
-    }
-    
-    // 读取登录URL（如果有）
-    bufferSize = sizeof(buffer);
-    result = RegQueryValueExW(
-        hKey,
-        L"LoginURL",
-        NULL,
-        &type,
-        (BYTE*)buffer,
-        &bufferSize
-    );
-    
-    if (result == ERROR_SUCCESS && type == REG_SZ) {
-        loginUrl = buffer;
     }
     
     // 读取校园网账号（如果有）
@@ -169,16 +117,44 @@ bool ReadServiceConfig(
     return true;
 }
 
+// 解析命令行参数
+void ParseCommandLineArgs(
+    int argc, 
+    wchar_t* argv[], 
+    std::wstring& password, 
+    std::wstring& campusAccount, 
+    std::wstring& campusPassword
+) {
+    for (int i = 1; i < argc; i++) {
+        std::wstring arg = argv[i];
+        
+        if (arg == L"--password" && i + 1 < argc) {
+            password = argv[++i];
+        }
+        else if (arg == L"--ca" && i + 1 < argc) {
+            campusAccount = argv[++i];
+        }
+        else if (arg == L"--cp" && i + 1 < argc) {
+            campusPassword = argv[++i];
+        }
+    }
+}
+
 // 打印帮助信息
 void PrintHelp() {
     std::wcout << L"WiFi Auto Connect Service\n";
     std::wcout << L"Usage:\n";
-    std::wcout << L"  install <SSID> <密码> [登录用户名] [登录密码] [登录URL] [校园网账号] [校园网密码] - 安装服务\n";
+    std::wcout << L"  install <SSID> [选项] - 安装服务\n";
     std::wcout << L"  uninstall - 卸载服务\n";
     std::wcout << L"  start - 启动服务\n";
     std::wcout << L"  stop - 停止服务\n";
     std::wcout << L"  status - 查看服务状态\n";
-    std::wcout << L"  run <SSID> <密码> [登录用户名] [登录密码] [登录URL] [校园网账号] [校园网密码] - 直接运行（非服务模式）\n";
+    std::wcout << L"  run <SSID> [选项] - 直接运行（非服务模式）\n";
+    std::wcout << L"\n";
+    std::wcout << L"选项:\n";
+    std::wcout << L"  --password <密码>   - 设置WiFi密码\n";
+    std::wcout << L"  --ca <账号>         - 设置校园网账号\n";
+    std::wcout << L"  --cp <密码>         - 设置校园网密码\n";
 }
 
 // 获取当前可执行文件路径
@@ -191,13 +167,12 @@ std::wstring GetExecutablePath() {
 // 服务入口点
 void WINAPI ServiceMain(DWORD argc, LPWSTR* argv) {
     // 从注册表读取配置
-    std::wstring targetSsid, targetPassword, loginUsername, loginPassword, loginUrl, campusAccount, campusPassword;
-    if (ReadServiceConfig(SERVICE_NAME, targetSsid, targetPassword, loginUsername, loginPassword, loginUrl, campusAccount, campusPassword)) {
+    std::wstring targetSsid, targetPassword, campusAccount, campusPassword;
+    if (ReadServiceConfig(SERVICE_NAME, targetSsid, targetPassword, campusAccount, campusPassword)) {
         // 创建服务实例
         WifiService service;
         service.SetServiceName(SERVICE_NAME);
         service.SetTargetWifi(targetSsid, targetPassword);
-        service.SetLoginCredentials(loginUsername, loginPassword, loginUrl);
         service.SetCampusNetworkCredentials(campusAccount, campusPassword);
         
         // 启动服务
@@ -219,6 +194,9 @@ bool SetupChineseConsole() {
     
     // 设置标准输出模式为UTF-8
     _setmode(_fileno(stdout), _O_U8TEXT);
+    
+    // 设置标准错误输出模式为UTF-8
+    _setmode(_fileno(stderr), _O_U8TEXT);
     
     // 获取控制台输出句柄
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -277,19 +255,17 @@ int wmain(int argc, wchar_t* argv[]) {
 
         // 安装服务
         if (command == L"install") {
-            if (argc < 4) {
-                std::wcout << L"错误: 安装服务需要指定SSID和密码\n";
+            if (argc < 3) {
+                std::wcout << L"错误: 安装服务需要指定SSID\n";
                 PrintHelp();
                 return 1;
             }
 
             std::wstring ssid = argv[2];
-            std::wstring password = argv[3];
-            std::wstring loginUsername = (argc > 4) ? argv[4] : L"";
-            std::wstring loginPassword = (argc > 5) ? argv[5] : L"";
-            std::wstring loginUrl = (argc > 6) ? argv[6] : L"";
-            std::wstring campusAccount = (argc > 7) ? argv[7] : L"";
-            std::wstring campusPassword = (argc > 8) ? argv[8] : L"";
+            std::wstring password, campusAccount, campusPassword;
+            
+            // 解析命令行参数
+            ParseCommandLineArgs(argc, argv, password, campusAccount, campusPassword);
 
             if (ServiceInstaller::Install(
                 SERVICE_NAME, 
@@ -298,9 +274,6 @@ int wmain(int argc, wchar_t* argv[]) {
                 GetExecutablePath(),
                 ssid,
                 password,
-                loginUsername,
-                loginPassword,
-                loginUrl,
                 campusAccount,
                 campusPassword)) {
                 std::wcout << L"服务安装成功\n";
@@ -367,24 +340,26 @@ int wmain(int argc, wchar_t* argv[]) {
         }
         // 直接运行（非服务模式）
         else if (command == L"run") {
-            if (argc < 4) {
-                std::wcout << L"错误: 运行需要指定SSID和密码\n";
+            if (argc < 3) {
+                std::wcout << L"错误: 运行需要指定SSID\n";
                 PrintHelp();
                 return 1;
             }
 
             std::wstring ssid = argv[2];
-            std::wstring password = argv[3];
-            std::wstring loginUsername = (argc > 4) ? argv[4] : L"";
-            std::wstring loginPassword = (argc > 5) ? argv[5] : L"";
-            std::wstring loginUrl = (argc > 6) ? argv[6] : L"";
-            std::wstring campusAccount = (argc > 7) ? argv[7] : L"";
-            std::wstring campusPassword = (argc > 8) ? argv[8] : L"";
+            std::wstring password, campusAccount, campusPassword;
+            
+            // 解析命令行参数
+            ParseCommandLineArgs(argc, argv, password, campusAccount, campusPassword);
+
+            std::wcout << L"SSID: " << ssid << std::endl;
+            std::wcout << L"Password: " << (password.empty() ? L"<未设置>" : L"******") << std::endl;
+            std::wcout << L"CampusAccount: " << campusAccount << std::endl;
+            std::wcout << L"CampusPassword: " << (campusPassword.empty() ? L"<未设置>" : L"******") << std::endl;
 
             WifiService service;
             service.SetServiceName(SERVICE_NAME);
             service.SetTargetWifi(ssid, password);
-            service.SetLoginCredentials(loginUsername, loginPassword, loginUrl);
             service.SetCampusNetworkCredentials(campusAccount, campusPassword);
             
             if (service.Start()) {

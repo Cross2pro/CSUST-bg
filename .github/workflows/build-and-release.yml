@@ -38,15 +38,23 @@ jobs:
         cp README.md release/
       shell: pwsh
       
-    - name: 创建ZIP压缩包
-      run: |
-        Compress-Archive -Path release/* -DestinationPath WifiAutoConnectService.zip
-      shell: pwsh
-      
     - name: 获取版本号
       id: get_version
       run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       shell: bash
+      
+    - name: 创建ZIP压缩包
+      run: |
+        Compress-Archive -Path release/* -DestinationPath WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}.zip
+        # 确保文件存在并输出文件信息
+        ls -la WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}.zip
+      shell: pwsh
+      
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}
+        path: WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}.zip
       
     - name: 创建GitHub发布
       id: create_release
@@ -55,8 +63,7 @@ jobs:
         name: WiFi自动连接服务 ${{ steps.get_version.outputs.VERSION }}
         draft: false
         prerelease: false
-        files: |
-          WifiAutoConnectService.zip
+        files: WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}.zip
         body: |
           # WiFi自动连接服务 ${{ steps.get_version.outputs.VERSION }}
           
@@ -64,7 +71,7 @@ jobs:
           
           ## 安装方法
           
-          1. 下载并解压 WifiAutoConnectService.zip
+          1. 下载并解压 WifiAutoConnectService-${{ steps.get_version.outputs.VERSION }}.zip
           2. 以管理员身份运行命令提示符
           3. 使用以下命令安装服务：
              ```

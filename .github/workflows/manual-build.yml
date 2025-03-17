@@ -44,6 +44,8 @@ jobs:
     - name: 创建ZIP压缩包
       run: |
         Compress-Archive -Path release/* -DestinationPath WifiAutoConnectService-${{ github.event.inputs.version }}.zip
+        # 确保文件存在并输出文件信息
+        ls -la WifiAutoConnectService-${{ github.event.inputs.version }}.zip
       shell: pwsh
       
     - name: 上传构建产物
@@ -60,8 +62,7 @@ jobs:
         tag_name: v${{ github.event.inputs.version }}
         draft: true
         prerelease: false
-        files: |
-          WifiAutoConnectService-${{ github.event.inputs.version }}.zip
+        files: WifiAutoConnectService-${{ github.event.inputs.version }}.zip
         body: |
           # WiFi自动连接服务 ${{ github.event.inputs.version }}
           
@@ -69,7 +70,7 @@ jobs:
           
           ## 安装方法
           
-          1. 下载并解压 WifiAutoConnectService.zip
+          1. 下载并解压 WifiAutoConnectService-${{ github.event.inputs.version }}.zip
           2. 以管理员身份运行命令提示符
           3. 使用以下命令安装服务：
              ```
